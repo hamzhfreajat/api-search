@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,7 +18,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    await init_elasticsearch()
+    asyncio.create_task(init_elasticsearch())
 
 # Minimal City model to accept cities payload for intent parsing
 # Normally, we'd fetch this from the DB, but since this service shouldn't connect
