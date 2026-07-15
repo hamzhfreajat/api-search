@@ -205,6 +205,88 @@ def _score_signals(padded_query: str, signals: Set[str]) -> int:
 def _has_any_signal(padded_query: str, signals: Set[str]) -> bool:
     return _score_signals(padded_query, signals) > 0
 
+
+def _apply_dynamic_regex(padded: str, tags: set) -> str:
+    import re
+    
+    # 1. Area Extraction
+    m_area = re.search(r'(?:مساح(?:ة|ه)|مساحته|بمساح(?:ة|ه))\s*(?:من|بين)?\s*(\d+)\s*(?:ال(?:ي|ى)|و)?\s*(\d+)?\s*(?:متر|م|مترمربع|متر مربع)?\s*(?:مربع)?', padded)
+    if not m_area:
+        m_area = re.search(r'(?<!\d)(?:من|بين)?\s*(\d+)\s*(?:ال(?:ي|ى)|و)?\s*(\d+)?\s*(?:متر|م|مترمربع|متر مربع)\s*(?:مربع)?', padded)
+        
+    if m_area:
+        if m_area.group(2):
+            tags.add(f"min_area:{m_area.group(1)}")
+            tags.add(f"max_area:{m_area.group(2)}")
+        else:
+            tags.add(f"min_area:{m_area.group(1)}")
+            tags.add(f"max_area:{m_area.group(1)}")
+        padded = padded[:m_area.start()] + ' ' + padded[m_area.end():]
+
+    # 2. Price Extraction
+    m_price = re.search(r'(?:بسعر|ب|سعر|تحت|اقل من)\s*(?:من|بين)?\s*(\d+)\s*(الف|ألف)?\s*(?:ال(?:ي|ى)|و)?\s*(\d+)?\s*(الف|ألف)?\s*(?:دينار)?', padded)
+    if not m_price:
+        m_price = re.search(r'(?<!\d)(?:من|بين)?\s*(\d+)\s*(الف|ألف)?\s*(?:ال(?:ي|ى)|و)?\s*(\d+)?\s*(الف|ألف)?\s*(?:دينار)', padded)
+    if not m_price:
+        # Match 'من X الى Y' without keyword if numbers are large enough (> 100) or 'الف' is present
+        m_price = re.search(r'(?<!\d)(?:من|بين)?\s*(\d+)\s*(الف|ألف)?\s*(?:ال(?:ي|ى)|و)\s*(\d+)\s*(الف|ألف)?\s*(?:دينار)?', padded)
+    if not m_price:
+        # Match 'X الف' or 'X دينار'
+        m_price = re.search(r'(?<!\d)(\d+)\s*(الف|ألف|دينار)(?!\w)', padded)
+        
+    if m_price:
+        # For the last fallback, it might have only group 1 and 2
+        groups = m_price.groups()
+        if len(groups) == 2:
+            val = int(groups[0])
+            if groups[1] in ['الف', 'ألف']: val *= 1000
+            tags.add(f"min_price:{val}")
+            tags.add(f"max_price:{val}")
+        else:
+            min_val = int(m_price.group(1))
+            if m_price.group(2): min_val *= 1000
+            
+            if m_price.group(3):
+                max_val = int(m_price.group(3))
+                if m_price.group(4): max_val *= 1000
+                tags.add(f"min_price:{min_val}")
+                tags.add(f"max_price:{max_val}")
+            else:
+                tags.add(f"max_price:{min_val}")
+        padded = padded[:m_price.start()] + ' ' + padded[m_price.end():]
+
+    # 3. Floor Extraction
+    m_floor = re.search(r'(?:الطابق|طابق|ط)\s*(الارضي|الاول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الاخير|\d+)', padded)
+    if m_floor:
+        val = m_floor.group(1)
+        mapping = {'الارضي': '0', 'الاول': '1', 'الثاني': '2', 'الثالث': '3', 'الرابع': '4', 'الخامس': '5', 'السادس': '6', 'السابع': '7', 'الثامن': '8', 'التاسع': '9', 'العاشر': '10', 'الاخير': '99'}
+        val = mapping.get(val, val)
+        tags.add(f"floor:{val}")
+        padded = padded[:m_floor.start()] + ' ' + padded[m_floor.end():]
+
+    # 4. Bedrooms
+    m_bed = re.search(r'(\d+)\s*(?:غرف(?:ة|ه)? نوم|غرف(?:ة|ه)?|نوم)', padded)
+    if m_bed:
+        val = int(m_bed.group(1))
+        if val >= 6: tags.add("bedrooms:+6")
+        else: tags.add(f"bedrooms:{val}")
+        padded = padded[:m_bed.start()] + ' ' + padded[m_bed.end():]
+        
+    # 5. Bathrooms
+    m_bath = re.search(r'(\d+)\s*(?:حمامات|حمام)', padded)
+    if m_bath:
+        tags.add(f"bathrooms:{m_bath.group(1)}")
+        padded = padded[:m_bath.start()] + ' ' + padded[m_bath.end():]
+        
+    return padded
+
+def _remove_stopwords(padded: str) -> str:
+    import re
+    stopwords = ['في', 'من', 'ب', 'عن', 'على', 'ل', 'الى', 'إلى', 'مع', 'و', 'او', 'أو', 'لل', 'اللي', 'الي']
+    for word in stopwords:
+        padded = re.sub(r'(?<!\S)' + word + r'(?!\S)', ' ', padded)
+    return padded.strip()
+
 class SearchIntentParser:
     @staticmethod
     def parse(raw_query: str, cities: List[dict] = []) -> SearchIntent:
@@ -220,6 +302,8 @@ class SearchIntentParser:
         padded = f" {working_query} "
         import re as regex
         padded = regex.sub(r'[^\w\u0600-\u06FF]+', ' ', padded)
+        
+        padded = _apply_dynamic_regex(padded, tags)
         
         padded = _extract_multi_word_matches(_property_type_map, padded, tags)
         padded = _extract_multi_word_matches(_furnishing_map, padded, tags)
@@ -285,6 +369,9 @@ class SearchIntentParser:
         # Remove sale/rent signals from the clean query
         for s in _sale_signals.union(_rent_signals).union(_strong_land_signals):
             padded = padded.replace(f" {s} ", " ")
+            
+        # Remove stopwords from the clean query
+        padded = _remove_stopwords(padded)
             
         return SearchIntent(
             category_id=category_id,
