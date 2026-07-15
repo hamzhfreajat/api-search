@@ -310,11 +310,19 @@ def _apply_dynamic_regex(padded: str, tags: set) -> str:
                 tags.add(f"max_price:{min_val}")
         padded = padded[:m_price.start()] + ' ' + padded[m_price.end():]
 
-    # 3. Floor Extraction
-    m_floor = re.search(r'(?:الطابق|طابق|ط)\s*(الارضي|الاول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الاخير|\d+)', padded)
+        # Floor Extraction
+    m_floor = None
+    m_edge = re.search(r'(تسوية|تسوي(?:ة|ه)|شبه ارضي|شبه أرضي|روف|ملحق)', padded)
+    if m_edge:
+        val = m_edge.group(1)
+        mapping_edge = {'تسوية': '-1', 'تسويه': '-1', 'شبه ارضي': '0', 'شبه أرضي': '0', 'روف': '99', 'ملحق': '99'}
+        tags.add(f"floor:{mapping_edge.get(val, val)}")
+        padded = padded[:m_edge.start()] + ' ' + padded[m_edge.end():]
+    else:
+        m_floor = re.search(r'(?:الطابق|طابق|ط)\s*(?:ال)?(ارضي|اول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|اخير|\d+)', padded)
     if m_floor:
         val = m_floor.group(1)
-        mapping = {'الارضي': '0', 'الاول': '1', 'الثاني': '2', 'الثالث': '3', 'الرابع': '4', 'الخامس': '5', 'السادس': '6', 'السابع': '7', 'الثامن': '8', 'التاسع': '9', 'العاشر': '10', 'الاخير': '99'}
+        mapping = {'ارضي': '0', 'اول': '1', 'ثاني': '2', 'ثالث': '3', 'رابع': '4', 'خامس': '5', 'سادس': '6', 'سابع': '7', 'ثامن': '8', 'تاسع': '9', 'عاشر': '10', 'اخير': '99'}
         val = mapping.get(val, val)
         tags.add(f"floor:{val}")
         padded = padded[:m_floor.start()] + ' ' + padded[m_floor.end():]
