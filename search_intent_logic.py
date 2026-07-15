@@ -181,13 +181,14 @@ def _extract_location(query: str, cities: List[dict]) -> Tuple[Optional[str], st
         
     return best_loc, clean_query.strip()
 
-def _extract_multi_word_matches(dict_map: Dict[str, str], padded_query: str, tags: Set[str]):
+def _extract_multi_word_matches(dict_map: Dict[str, str], padded_query: str, tags: Set[str]) -> str:
     sorted_keys = sorted(dict_map.keys(), key=len, reverse=True)
     for k in sorted_keys:
         nk = _n(k)
         if f" {nk} " in padded_query:
             tags.add(dict_map[k])
             padded_query = padded_query.replace(f" {nk} ", " ")
+    return padded_query
 
 def _score_signals(padded_query: str, signals: Set[str]) -> int:
     score = 0
@@ -220,18 +221,18 @@ class SearchIntentParser:
         import re as regex
         padded = regex.sub(r'[^\w\u0600-\u06FF]+', ' ', padded)
         
-        _extract_multi_word_matches(_property_type_map, padded, tags)
-        _extract_multi_word_matches(_furnishing_map, padded, tags)
-        _extract_multi_word_matches(_bedrooms_map, padded, tags)
-        _extract_multi_word_matches(_bathrooms_map, padded, tags)
-        _extract_multi_word_matches(_floor_map, padded, tags)
-        _extract_multi_word_matches(_age_map, padded, tags)
-        _extract_multi_word_matches(_rent_period_map, padded, tags)
-        _extract_multi_word_matches(_payment_map, padded, tags)
-        _extract_multi_word_matches(_tenant_map, padded, tags)
-        _extract_multi_word_matches(_source_map, padded, tags)
-        _extract_multi_word_matches(_features_map, padded, tags)
-        _extract_multi_word_matches(_project_map, padded, tags)
+        padded = _extract_multi_word_matches(_property_type_map, padded, tags)
+        padded = _extract_multi_word_matches(_furnishing_map, padded, tags)
+        padded = _extract_multi_word_matches(_bedrooms_map, padded, tags)
+        padded = _extract_multi_word_matches(_bathrooms_map, padded, tags)
+        padded = _extract_multi_word_matches(_floor_map, padded, tags)
+        padded = _extract_multi_word_matches(_age_map, padded, tags)
+        padded = _extract_multi_word_matches(_rent_period_map, padded, tags)
+        padded = _extract_multi_word_matches(_payment_map, padded, tags)
+        padded = _extract_multi_word_matches(_tenant_map, padded, tags)
+        padded = _extract_multi_word_matches(_source_map, padded, tags)
+        padded = _extract_multi_word_matches(_features_map, padded, tags)
+        padded = _extract_multi_word_matches(_project_map, padded, tags)
         
         category_id = None
         category_name = None
@@ -281,11 +282,15 @@ class SearchIntentParser:
         if category_id in [10301, 10302, 10101, 10102, 10103, 10104, 10106, 10105, 10314, 301, 303, 302, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 315]:
             tags = {t for t in tags if t not in _property_type_values}
             
+        # Remove sale/rent signals from the clean query
+        for s in _sale_signals.union(_rent_signals).union(_strong_land_signals):
+            padded = padded.replace(f" {s} ", " ")
+            
         return SearchIntent(
             category_id=category_id,
             category_name=category_name,
             location=location,
             tags=list(tags),
             confidence=min(confidence, 1.0),
-            clean_query=working_query.strip()
+            clean_query=padded.strip()
         )
