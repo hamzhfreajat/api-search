@@ -19,18 +19,9 @@ def _n(s: str) -> str:
 def _strip_diacritics(s: str) -> str:
     return re.sub(r'[\u064B-\u065F\u0670]', '', s)
 
-_sale_signals = set(_n(w) for w in [
-    'للبيع', 'بيع', 'لبيع', 'نبيع', 'تمليك', 'تملك', 'منتهي بالتمليك', 'منتهيه بالتمليك',
-    'ايجار منتهي بالتمليك', 'شراء', 'شري', 'تقسيط', 'اقساط', 'قسط', 'بالتقسيط', 'بالاقساط', 'بالقسط',
-    'بدون مقدم', 'بدون فوايد', 'بدون فواید', 'للتنازل', 'تنازل', 'للبيع بالتقسيط'
-])
+_sale_signals = set(_n(w) for w in ['للبيع', 'بيع', 'مبيعات', 'شراء', 'شراء عقار', 'أرغب بشراء', 'ابحث عن شراء', 'شراء شقة', 'شراء بيت', 'شراء منزل', 'شراء فيلا', 'شراء أرض'])
 
-_rent_signals = set(_n(w) for w in [
-    'للايجار', 'للإيجار', 'للاجار', 'للاجاره', 'للاجره', 'ايجار', 'إيجار', 'اجار', 'اجاره',
-    'ايجارات', 'تاجير', 'تأجير', 'ايجار يومي', 'ايجار شهري', 'ايجار سنوي', 'ايجار جديد', 'ايجار قديم',
-    'قانون جديد', 'قانون قديم', 'يومي', 'شهري', 'سنوي', 'اسبوعي', 'بالساعه', 'بالساعة', 'بالشهر',
-    'يوم واحد'
-])
+_rent_signals = set(_n(w) for w in ['للايجار', 'للإيجار', 'ايجار', 'إيجار', 'اجار', 'أجار', 'استئجار', 'استئجار شقة', 'استئجار بيت', 'استئجار منزل', 'استئجار فيلا'])
 
 _strong_land_signals = set(_n(w) for w in [
     'ارض', 'اراضي', 'أراضي', 'أرض', 'اراضى', 'قطعه ارض', 'قطعة ارض', 'قطع اراضي', 'قطعة أرض',
@@ -46,7 +37,27 @@ _strong_land_signals = set(_n(w) for w in [
     'اراضي وعقارات'
 ])
 
+
+_construction_status_map = {
+    'جاهز للسكن': 'construction_status:جاهز', 'جاهزه للسكن': 'construction_status:جاهز',
+    'تحت الانشاء': 'construction_status:تحت الإنشاء',
+}
+_finishing_map = {
+    'تشطيب كامل': 'finishing:سوبر ديلوكس', 'تشطيب سوبر لوكس': 'finishing:سوبر ديلوكس',
+    'تشطيب ديلوكس': 'finishing:سوبر ديلوكس', 'تشطيب فاخر': 'finishing:سوبر ديلوكس', 'تشطيب لوكس': 'finishing:سوبر ديلوكس',
+    'بدون تشطيب': 'finishing:بدون تشطيب', 'نصف تشطيب': 'finishing:بدون تشطيب',
+}
+
 _property_type_map = {
+    'عقار تجاري': 'تجاري', 'عقار استثماري': 'تجاري',
+    'مخزن': 'مستودع', 'مستودع': 'مستودع', 'ورشة': 'مستودع',
+    'محل': 'محل تجاري', 'محلات': 'محل تجاري', 'معرض': 'محل تجاري', 'محل تجاري': 'محل تجاري',
+    'مبنى تجاري': 'مبنى تجاري', 'برج': 'مبنى تجاري', 'عمارة تجارية': 'مبنى تجاري',
+    'مكتب إداري': 'مكتب', 'مكاتب': 'مكتب',
+    'عيادة': 'عيادة', 'صيدلية': 'عيادة',
+    'دوبلكس': 'دوبلكس', 'بنتهاوس': 'دوبلكس',
+    'روف': 'روف', 'ملحق': 'روف',
+    'استراحة': 'استراحة', 'مزرعة': 'مزرعة', 'قصر': 'قصر', 'مبنى': 'عمارة', 'عمارة': 'عمارة',
     'شقق سكنيه': 'شقة', 'شقق سكنية': 'شقة', 'شقه فندقيه': 'شقة فندقية', 'شقة فندقيه': 'شقة فندقية',
     'شقق فندقيه': 'شقة فندقية', 'شقة فندقية': 'شقة فندقية', 'شقق فندقية': 'شقة فندقية',
     'شقه ارضيه': 'شقة أرضية', 'شقة ارضيه': 'شقة أرضية', 'شقة ارضية': 'شقة أرضية', 'شقة استوديو': 'شقة',
@@ -109,6 +120,10 @@ _age_map = {
 }
 
 _rent_period_map = {
+    'ايجار سنوي': 'rent_duration:سنوي', 'ايجار شهري': 'rent_duration:شهري', 'ايجار اسبوعي': 'rent_duration:أسبوعي',
+    'ايجار يومي': 'rent_duration:يومي', 'بالساعه': 'rent_duration:يومي', 'ليله واحده': 'rent_duration:يومي',
+    'ايجار طويل': 'rent_duration:سنوي', 'ايجار قصير': 'rent_duration:شهري',
+
     'يوم واحد': 'rent_duration:يومي', 'يومي': 'rent_duration:يومي', 'اليومي': 'rent_duration:يومي',
     'بالساعه': 'rent_duration:يومي', 'بالساعة': 'rent_duration:يومي', 'سياحي': 'rent_duration:يومي',
     'شهري': 'rent_duration:شهري', 'الشهري': 'rent_duration:شهري', 'بالشهر': 'rent_duration:شهري', 'شهر': 'rent_duration:شهري',
@@ -117,6 +132,10 @@ _rent_period_map = {
 }
 
 _payment_map = {
+    'بدون دفعه اولي': 'payment_method:أقساط', 'بدون مقدم': 'payment_method:أقساط',
+    'تمويل عقاري': 'payment_method:أقساط', 'تمويل بنكي': 'payment_method:أقساط',
+    'تقسيط شهري': 'payment_method:أقساط', 'قسط شهري': 'payment_method:أقساط', 'تقسيط مباشر': 'payment_method:أقساط',
+
     'بالتقسيط بدون مقدم': 'تقسيط', 'بالتقسيط بدون فوايد': 'تقسيط', 'تقسيط بدون مقدم': 'تقسيط',
     'تقسيط بدون فوايد': 'تقسيط', 'تقسيط': 'تقسيط', 'بالتقسيط': 'تقسيط',
     'اقساط': 'أقساط', 'بالاقساط': 'أقساط', 'بالقسط': 'أقساط', 'قسط': 'أقساط',
@@ -129,11 +148,20 @@ _tenant_map = {
 }
 
 _source_map = {
+    'من المالك مباشره': 'advertiser:من المالك', 'بدون وسيط': 'advertiser:من المالك',
+    'بدون سمسار': 'advertiser:من المالك', 'مباشره من المالك': 'advertiser:من المالك',
+    'من المالك': 'advertiser:من المالك', 'وسيط عقاري': 'advertiser:مكتب عقاري', 'سمسار عقاري': 'advertiser:مكتب عقاري',
+
     'من المالك مباشره': 'من المالك', 'من المالك مباشرة': 'من المالك', 'من المالك': 'من المالك',
     'مباشره': 'من المالك', 'بدون عموله': 'من المالك', 'بدون عمولة': 'من المالك',
 }
 
 _features_map = {
+    'مع حديقه': 'main_features:حديقة', 'مع مسبح': 'main_features:مسبح', 'مع روف': 'main_features:روف',
+    'مع موقف سياره': 'main_features:كراج', 'مع كراج': 'main_features:كراج', 'مع مصعد': 'main_features:مصعد',
+    'مع حارس': 'main_features:حارس', 'مع بلكونه': 'main_features:بلكونة', 'مع تراس': 'main_features:تراس',
+    'مطل علي البحر': 'main_features:إطلالة', 'اطلاله بحريه': 'main_features:إطلالة', 'اطلاله علي الحديقه': 'main_features:إطلالة',
+
     'بحمام سباحه': 'extra_features:مسبح', 'بحمام سباحة': 'extra_features:مسبح', 'حمام سباحه': 'extra_features:مسبح',
     'حمام سباحة': 'extra_features:مسبح', 'مسبح': 'extra_features:مسبح', 'دوبلكس': 'geometric_shape:دوبلكس',
     'دبلكس': 'geometric_shape:دوبلكس', 'دورين': 'geometric_shape:دوبلكس', 'روف': 'geometric_shape:روف',
@@ -345,7 +373,7 @@ def _apply_dynamic_regex(padded: str, tags: set) -> str:
 
 def _remove_stopwords(padded: str) -> str:
     import re
-    stopwords = ['في', 'من', 'ب', 'عن', 'على', 'ل', 'الى', 'إلى', 'مع', 'و', 'او', 'أو', 'لل', 'اللي', 'الي']
+    stopwords = ['U?US', 'U.U+', 'O"', 'O1U+', 'O1U,U%', 'U,', 'O U,U%', 'OU,U%', 'U.O1', 'U^', 'O U^', 'OU^', 'U,U,', 'O U,U,US', 'O U,US', 'ابحث عن', 'احتاج', 'أبحث عن', 'أحتاج', 'أرغب بشراء', 'رخيص', 'رخيصة', 'رخيصه', 'أرخص']
     for word in stopwords:
         padded = re.sub(r'(?<!\S)' + word + r'(?!\S)', ' ', padded)
     return padded.strip()
@@ -368,6 +396,8 @@ class SearchIntentParser:
         
         padded = _apply_dynamic_regex(padded, tags)
         
+        padded = _extract_multi_word_matches(_construction_status_map, padded, tags)
+        padded = _extract_multi_word_matches(_finishing_map, padded, tags)
         padded = _extract_multi_word_matches(_property_type_map, padded, tags)
         padded = _extract_multi_word_matches(_furnishing_map, padded, tags)
         padded = _extract_multi_word_matches(_bedrooms_map, padded, tags)
@@ -389,6 +419,7 @@ class SearchIntentParser:
         rent_score = _score_signals(padded, _rent_signals)
         has_strong_land = _has_any_signal(padded, _strong_land_signals)
         
+
         if has_strong_land:
             category_id = 10313
             if sale_score > rent_score: category_name = 'أراضي للبيع'
@@ -399,34 +430,50 @@ class SearchIntentParser:
             if 'شقة' in tags or 'شقة أرضية' in tags: category_id, category_name = 10301, 'شقق للبيع'
             elif 'ستوديو' in tags: category_id, category_name = 10302, 'ستوديوهات للبيع'
             elif 'فيلا' in tags: category_id, category_name = 10101, 'فلل وقصور'
+            elif 'قصر' in tags: category_id, category_name = 10101, 'فلل وقصور'
             elif 'بيت' in tags: category_id, category_name = 10102, 'بيوت مستقلة'
             elif 'دوبلكس' in tags: category_id, category_name = 10103, 'دوبلكس / بنتهاوس'
             elif 'عمارة' in tags: category_id, category_name = 10104, 'عمارة'
             elif 'طابق كامل' in tags: category_id, category_name = 10106, 'طابق كامل'
             elif 'روف' in tags: category_id, category_name = 10105, 'ملحق / روف'
             elif 'مزرعة' in tags: category_id, category_name = 10314, 'مزرعة'
+            elif 'مستودع' in tags: category_id, category_name = 10912, 'مخازن ومستودعات'
+            elif 'محل تجاري' in tags: category_id, category_name = 10303, 'محلات ومعارض للبيع'
+            elif 'مبنى تجاري' in tags: category_id, category_name = 18032, 'مباني تجارية كاملة'
+            elif 'مكتب' in tags: category_id, category_name = 10304, 'مكاتب للبيع'
+            elif 'عيادة' in tags: category_id, category_name = 18008, 'عيادات ومراكز طبية'
+            elif 'تجاري' in tags: category_id, category_name = 10311, 'عقارات تجارية للبيع'
+            elif 'استراحة' in tags: category_id, category_name = 315, 'استراحات'
             elif sale_score >= 2: category_id, category_name = 2, 'عقارات للبيع'
         elif rent_score > 0:
             if 'شقة' in tags or 'شقة أرضية' in tags: category_id, category_name = 301, 'شقق للإيجار'
             elif 'شقة فندقية' in tags: category_id, category_name = 303, 'شقق فندقية'
             elif 'ستوديو' in tags: category_id, category_name = 302, 'ستوديوهات للإيجار'
-            elif 'فيلا' in tags: category_id, category_name = 304, 'فلل وقصور للإيجار'
-            elif 'بيت' in tags: category_id, category_name = 305, 'بيوت مستقلة للإيجار'
-            elif 'محل تجاري' in tags: category_id, category_name = 306, 'محل تجاري'
-            elif 'مكتب' in tags: category_id, category_name = 307, 'مكاتب للإيجار'
-            elif 'عيادة' in tags: category_id, category_name = 308, 'عيادات للإيجار'
-            elif 'عمارة' in tags: category_id, category_name = 309, 'عمارة للإيجار'
+            elif 'فيلا' in tags: category_id, category_name = 3101, 'فلل وقصور'
+            elif 'قصر' in tags: category_id, category_name = 3101, 'فلل وقصور'
+            elif 'بيت' in tags: category_id, category_name = 3102, 'بيوت مستقلة للإيجار'
+            elif 'دوبلكس' in tags: category_id, category_name = 3103, 'دوبلكس / بنتهاوس'
+            elif 'طابق كامل' in tags: category_id, category_name = 3104, 'طابق كامل للإيجار'
+            elif 'روف' in tags: category_id, category_name = 3105, 'ملحق / روف'
+            elif 'مزرعة' in tags: category_id, category_name = 314, 'مزارع'
+            elif 'مستودع' in tags: category_id, category_name = 1203020510, 'مخازن ومستودعات'
+            elif 'محل تجاري' in tags: category_id, category_name = 303, 'محلات ومعارض للإيجار'
+            elif 'مبنى تجاري' in tags: category_id, category_name = 1203020513, 'مباني تجارية كاملة'
+            elif 'مكتب' in tags: category_id, category_name = 304, 'مكاتب للإيجار'
+            elif 'عيادة' in tags: category_id, category_name = 1203020515, 'عيادات ومراكز طبية'
+            elif 'تجاري' in tags: category_id, category_name = 311, 'عقارات تجارية للإيجار'
+            elif 'عمارة' in tags: category_id, category_name = 1203020513, 'مباني تجارية كاملة'
             elif 'دور' in tags: category_id, category_name = 310, 'دور للإيجار'
             elif 'سكن' in tags: category_id, category_name = 311, 'سكن للإيجار'
             elif 'شاليه' in tags: category_id, category_name = 312, 'شاليهات ومصايف'
             elif 'مخيم' in tags: category_id, category_name = 313, 'مخيمات'
             elif 'استراحة' in tags: category_id, category_name = 315, 'استراحات'
             elif rent_score >= 2: category_id, category_name = 3, 'عقارات للإيجار'
-            
+
         if category_id is not None:
             confidence += 0.4
-            
-        if category_id in [10301, 10302, 10101, 10102, 10103, 10104, 10106, 10105, 10314, 301, 303, 302, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 315]:
+
+        if category_id in [10301, 10302, 10101, 10102, 10103, 10104, 10106, 10105, 10314, 10912, 10303, 18032, 10304, 18008, 10311, 301, 303, 302, 3101, 3102, 3103, 3104, 3105, 314, 1203020510, 1203020513, 304, 1203020515, 311, 310, 312, 313, 315]:
             if 'شقة أرضية' in tags:
                 tags.add('floor:الطابق الأرضي')
             elif 'ستوديو' in tags:
