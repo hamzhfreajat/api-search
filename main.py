@@ -1,4 +1,8 @@
 import asyncio
+import urllib.request
+import ssl
+import json
+import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -16,22 +20,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+cached_locations = []
+
+def fetch_locations():
+    global cached_locations
+    if cached_locations:
+        return cached_locations
+        
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        req = urllib.request.Request(
+            'https://api.sooq-com.com/api/locations', 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        with urllib.request.urlopen(req, context=ctx, timeout=10) as r:
+            cached_locations = json.loads(r.read().decode('utf-8'))
+            logging.info(f"Fetched {len(cached_locations)} locations from main API.")
+    except Exception as e:
+        logging.error(f"Failed to fetch locations: {e}")
+        # Basic fallback if API fails
+        cached_locations = [
+            {"name_ar": "عمان", "regions": []},
+            {"name_ar": "إربد", "regions": []},
+            {"name_ar": "الزرقاء", "regions": []}
+        ]
+        
+    return cached_locations
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(init_elasticsearch())
+    # Prefetch locations on startup in a separate thread so we don't block
+    asyncio.get_event_loop().run_in_executor(None, fetch_locations)
 
-# Minimal City model to accept cities payload for intent parsing
-# Normally, we'd fetch this from the DB, but since this service shouldn't connect
-# to PostgreSQL to keep it decoupled, the client can pass cities or we can just 
-# rely on a static list or rely on the main backend. Wait! 
-# The main backend used to query PostgreSQL for cities_db and pass it to the parser!
-# Since this service shouldn't connect to postgres, the easiest way is to let the 
-# mobile app or the backend pass the list of cities, OR we hardcode the major cities,
-# OR we do a quick HTTP call to the main backend?
-# Given the user wants high performance, hardcoding or fetching via background task is best.
-# Let's add a static list of cities for now.
-
-# We will just use a generic dictionary for ads
 class AdPayload(BaseModel):
     ad: Dict[str, Any]
 
@@ -53,27 +77,9 @@ async def api_delete_ad(ad_id: int):
 
 class IntentRequest(BaseModel):
     q: str
-    # In a fully decoupled system, the cities list could be fetched from cache.
-    # We will let the query pass it, or we use a basic static fallback.
 
 @app.get("/api/search/intent")
 async def get_search_intent(q: str = ""):
-    # A basic list of cities for Jordan as a fallback. 
-    # For a production system, you'd periodically sync this from the main DB or Redis.
-    static_cities = [
-        {"name_ar": "عمان", "regions": []},
-        {"name_ar": "اربد", "regions": []},
-        {"name_ar": "الزرقاء", "regions": []},
-        {"name_ar": "العقبة", "regions": []},
-        {"name_ar": "السلط", "regions": []},
-        {"name_ar": "المفرق", "regions": []},
-        {"name_ar": "جرش", "regions": []},
-        {"name_ar": "عجلون", "regions": []},
-        {"name_ar": "مادبا", "regions": []},
-        {"name_ar": "الكرك", "regions": []},
-        {"name_ar": "الطفيلة", "regions": []},
-        {"name_ar": "معان", "regions": []},
-    ]
-    
-    intent = SearchIntentParser.parse(q, static_cities)
+    cities = fetch_locations()
+    intent = SearchIntentParser.parse(q, cities)
     return intent.model_dump()
