@@ -206,6 +206,61 @@ def _has_any_signal(padded_query: str, signals: Set[str]) -> bool:
     return _score_signals(padded_query, signals) > 0
 
 
+
+# Injected new keywords from user's list
+_property_type_map.update({
+    'شقق': 'شقة', 'شقة': 'شقة', 'شقه': 'شقة',
+    'منازل': 'بيت', 'منزل': 'بيت', 'بيوت': 'بيت', 'بيت': 'بيت',
+    'فلل': 'فيلا', 'فيلا': 'فيلا', 'فله': 'فيلا',
+    'أراضي': 'أرض', 'اراضي': 'أرض', 'اراضى': 'أرض', 'ارض': 'أرض',
+    'استوديو': 'استوديو', 'استديو': 'استوديو', 'ستوديو': 'استوديو', 'استديوهات': 'استوديو',
+    'مكاتب': 'مكتب', 'مكتب': 'مكتب',
+    'شاليهات': 'شاليه', 'شاليه': 'شاليه',
+    'كرفانات': 'كرفان', 'كرفان': 'كرفان',
+    'محلات': 'محل تجاري', 'محل': 'محل تجاري',
+    'روف': 'روف',
+    'دور': 'دور', 'ادوار': 'دور', 'دورين': 'دور'
+})
+
+_rent_period_map.update({
+    'يومي': 'rent_duration:يومي', 'اليومي': 'rent_duration:يومي', 'يومية': 'rent_duration:يومي', 'يوم واحد': 'rent_duration:يومي',
+    'شهري': 'rent_duration:شهري', 'الشهري': 'rent_duration:شهري', 'بالشهر': 'rent_duration:شهري',
+    'سنوي': 'rent_duration:سنوي', 'سنوي': 'rent_duration:سنوي',
+    'بالساعه': 'rent_duration:ساعة'
+})
+
+_furnishing_map.update({
+    'مفروشة': 'furnished:مفروشة', 'مفروشه': 'furnished:مفروشة', 'مفروش': 'furnished:مفروشة', 'مؤثثة': 'furnished:مفروشة',
+    'فندقية': 'furnished:مفروشة', 'فندقي': 'furnished:مفروشة', 'فندقيه': 'furnished:مفروشة',
+    'بدون فرش': 'furnished:غير_مفروشة', 'غير مفروشة': 'furnished:غير_مفروشة', 'غير مفروشه': 'furnished:غير_مفروشة'
+})
+
+_payment_map.update({
+    'بالتقسيط': 'payment:تقسيط', 'تقسيط': 'payment:تقسيط', 'قسط': 'payment:تقسيط', 'اقساط': 'payment:تقسيط',
+    'بدون مقدم': 'payment:بدون_مقدم',
+    'بدون فوائد': 'payment:بدون_فوائد',
+    'تمويل عقاري': 'payment:تمويل', 'تمويل': 'payment:تمويل'
+})
+
+_tenant_map.update({
+    'عزاب': 'target:عزاب',
+    'عوائل': 'target:عائلات', 'عائلات': 'target:عائلات', 'عائلي': 'target:عائلات',
+    'سكن عمال': 'target:عمال', 'عمال': 'target:عمال'
+})
+
+_features_map.update({
+    'فاخرة': 'feature:فاخرة', 'فاخره': 'feature:فاخرة',
+    'جديدة': 'condition:جديد', 'جديده': 'condition:جديد'
+})
+
+_sale_signals.update([
+    'للبيع', 'بيع', 'تمليك', 'للتمليك'
+])
+
+_rent_signals.update([
+    'للايجار', 'للإيجار', 'ايجار', 'اجار'
+])
+
 def _apply_dynamic_regex(padded: str, tags: set) -> str:
     import re
     
