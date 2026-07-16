@@ -401,6 +401,7 @@ class SearchIntentParser:
         if not raw_query or not raw_query.strip():
             return SearchIntent(confidence=0)
             
+        raw_query = raw_query[:200]
         cleaned = _strip_diacritics(raw_query.strip())
         normalized = _n(cleaned)
         
