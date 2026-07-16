@@ -390,7 +390,7 @@ def _apply_dynamic_regex(padded: str, tags: set) -> str:
 
 def _remove_stopwords(padded: str) -> str:
     import re
-    stopwords = ['U?US', 'U.U+', 'O"', 'O1U+', 'O1U,U%', 'U,', 'O U,U%', 'OU,U%', 'U.O1', 'U^', 'O U^', 'OU^', 'U,U,', 'O U,U,US', 'O U,US', 'ابحث عن', 'احتاج', 'أبحث عن', 'أحتاج', 'أرغب بشراء', 'رخيص', 'رخيصة', 'رخيصه', 'أرخص']
+    stopwords = ['في', 'من', 'عن', 'على', 'ب', 'ل', 'الى', 'إلى', 'ابحث عن', 'احتاج', 'أبحث عن', 'أحتاج', 'أرغب بشراء', 'رخيص', 'رخيصة', 'رخيصه', 'أرخص', 'مطلوب', 'اريد', 'أريد', 'عاجل']
     for word in stopwords:
         padded = re.sub(r'(?<!\S)' + word + r'(?!\S)', ' ', padded)
     return padded.strip()
