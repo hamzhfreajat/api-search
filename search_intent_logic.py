@@ -49,6 +49,7 @@ _finishing_map = {
 }
 
 _property_type_map = {
+    'ستوديوهات': 'ستوديو', 'استوديوهات': 'ستوديو',
     'عقار تجاري': 'تجاري', 'عقار استثماري': 'تجاري',
     'مخزن': 'مستودع', 'مستودع': 'مستودع', 'ورشة': 'مستودع',
     'محل': 'محل تجاري', 'محلات': 'محل تجاري', 'معرض': 'محل تجاري', 'محل تجاري': 'محل تجاري',
@@ -88,7 +89,7 @@ _furnishing_map = {
 }
 
 _bedrooms_map = {
-    'ستوديو': 'bedrooms:ستوديو', 'غرفة وحدة': 'bedrooms:1', 'غرفة واحدة': 'bedrooms:1',
+    'غرفة وحدة': 'bedrooms:1', 'غرفة واحدة': 'bedrooms:1',
     'غرفتين': 'bedrooms:2', 'غرفتان': 'bedrooms:2', '3 غرف': 'bedrooms:3', 'ثلاث غرف': 'bedrooms:3', 'ثلاثة غرف': 'bedrooms:3',
     '4 غرف': 'bedrooms:4', 'اربع غرف': 'bedrooms:4', 'أربع غرف': 'bedrooms:4', '5 غرف': 'bedrooms:5', 'خمس غرف': 'bedrooms:5',
     '6 غرف': 'bedrooms:+6', 'ست غرف': 'bedrooms:+6', '7 غرف': 'bedrooms:+6', 'سبع غرف': 'bedrooms:+6',
@@ -476,8 +477,6 @@ class SearchIntentParser:
         if category_id in [10301, 10302, 10101, 10102, 10103, 10104, 10106, 10105, 10314, 10912, 10303, 18032, 10304, 18008, 10311, 301, 303, 302, 3101, 3102, 3103, 3104, 3105, 314, 1203020510, 1203020513, 304, 1203020515, 311, 310, 312, 313, 315]:
             if 'شقة أرضية' in tags:
                 tags.add('floor:الطابق الأرضي')
-            elif 'ستوديو' in tags:
-                tags.add('bedrooms:ستوديو')
             tags = {t for t in tags if t not in _property_type_values}
             
         # Remove sale/rent signals from the clean query
