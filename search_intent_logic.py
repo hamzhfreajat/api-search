@@ -191,24 +191,38 @@ def _extract_location(query: str, cities: List[dict]) -> Tuple[Optional[str], st
     best_loc = None
     best_match_len = -1
     clean_query = f" {query} "
+    matched_target = None
     
     for city in cities:
         name_ar = _n(city['name_ar'])
-        target = f" {name_ar} "
-        if target in clean_query and len(name_ar) > best_match_len:
+        target1 = f" {name_ar} "
+        target2 = f" ب{name_ar} "
+        
+        if target1 in clean_query and len(name_ar) > best_match_len:
             best_loc = city['name_ar']
             best_match_len = len(name_ar)
+            matched_target = target1
+        elif target2 in clean_query and len(name_ar) > best_match_len:
+            best_loc = city['name_ar']
+            best_match_len = len(name_ar)
+            matched_target = target2
             
         for region in city.get('regions', []):
             r_name = _n(region['name_ar'])
-            target = f" {r_name} "
-            if target in clean_query and len(r_name) > best_match_len:
+            rtarget1 = f" {r_name} "
+            rtarget2 = f" ب{r_name} "
+            
+            if rtarget1 in clean_query and len(r_name) > best_match_len:
                 best_loc = region['name_ar']
                 best_match_len = len(r_name)
+                matched_target = rtarget1
+            elif rtarget2 in clean_query and len(r_name) > best_match_len:
+                best_loc = region['name_ar']
+                best_match_len = len(r_name)
+                matched_target = rtarget2
                 
-    if best_loc:
-        normalized_loc = _n(best_loc)
-        clean_query = clean_query.replace(f" {normalized_loc} ", " ")
+    if best_loc and matched_target:
+        clean_query = clean_query.replace(matched_target, " ")
         
     return best_loc, clean_query.strip()
 
